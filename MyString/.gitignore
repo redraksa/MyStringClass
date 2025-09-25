@@ -1,0 +1,10 @@
+*
+
+!*.cpp
+!*.h
+!*.hpp
+!*.hxx
+!.gitignore
+
+#!src/
+#!include/
