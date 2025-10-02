@@ -1,0 +1,30 @@
+# Игнорировать ВСЕ папки .vs в любом месте
+**/.vs/
+**/*.user
+**/*.suo
+**/*.sln.docstates
+**/*.o
+**/*.exe
+**/*.obj
+**/*.pdb
+**/*.ilk
+**/x64/
+**/Debug/
+**/Release/
+**/build_call_graph/
+**/.build/
+**/*.idb
+**/*.ipch
+**/*.db
+**/*.tlog
+**/*.log
+**/*.recipe
+
+# Явно разрешить исходные файлы
+!**/*.cpp
+!**/*.h
+!**/*.hpp
+!**/*.sln
+!**/Makefile
+!**/CMakeLists.txt
+!.gitignore
