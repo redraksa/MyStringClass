@@ -3,6 +3,12 @@
 
 #include <iostream>
 #include <exception>
+#include <string>
+#include <stdexcept>
+
+#ifdef __linux__
+#include "LinuxCompat.h"
+#endif
 
 class MyStringErrors {
 public:
@@ -30,6 +36,12 @@ public:
 		}
 	}
 
+	static void check_index(const int& index) {
+		if (index < 0) {
+			throw std::out_of_range("index can't be negative");
+		}
+	}
+
 	static void check_out_of_range_count(const char* str, const int& count) {
 		if (count > static_cast<int>(strlen(str)) && str != nullptr) {
 			throw std::out_of_range("count of copy symbols can't be greater than length of origing string");
@@ -38,23 +50,36 @@ public:
 
 	static void check_out_of_range_count(const int& length, const int& count) {
 		if (count > length) {
-			throw std::out_of_range("count of copy symbols can't be greater than length of origing string");
+			throw std::out_of_range("count of copy symbols (" + std::to_string(count) + ") can't be greater than length (" + std::to_string(length) + ") of origing string");
 		}
 	}
 
 	static void check_out_of_range_index(int size_str, const int index) {
-		if (index >= size_str && index >= 0) {
+		if ((index >= size_str && index + size_str != 0) || index < 0) {
+			throw std::out_of_range("Index " + std::to_string(index) +
+				" is out of range [0, " + std::to_string(size_str) + "]");
+		}
+	}
+
+	static void check_out_of_range_index(const char* str, const int index) {
+		if (index >= static_cast<int>(strlen(str)) || index < 0) {
 			throw std::out_of_range("index of string must be lesser than length of string and positive");
 		}
 	}
 
 	static void check_memmove_s(errno_t err) {
 		if (err != 0) {
-			throw std::runtime_error("memory move exception");
+			throw std::runtime_error("memory move exception!");
 		}
 	}
 
 	static void check_strncpy_s(errno_t err) {
+		if (err != 0) {
+			throw std::runtime_error("memory copy exception");
+		}
+	}
+
+	static void check_memcpy_s(errno_t err) {
 		if (err != 0) {
 			throw std::runtime_error("memory copy exception");
 		}

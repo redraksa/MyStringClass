@@ -5,6 +5,18 @@
 #include <stdexcept>
 #include <new>
 #include "MyStringErrors.h"
+#include <cmath>
+#include <string.h>
+
+#ifdef __linux__
+#include "LinuxCompat.h"
+#endif
+
+enum class LexicographicComparisonStringsResult {
+	cIsGreater = 1,
+	cIsEqual = 0,
+	cIsSmaller = -1
+};
 
 class MyString {
 public:
@@ -12,24 +24,22 @@ public:
 	MyString() : str_(nullptr), size_str_(0), capacity_str_(0) {}
 
 	//2. copy constructor from origin string (const char*)
-	MyString(const char* str) : MyString(str, static_cast<int>(strlen(str))) {
-		/*MyStringErrors::check_null_pointer_string(str);
+	MyString(const char* str) {
+		MyStringErrors::check_null_pointer_string(str);
 
-		size_str_ = strlen(str);
-		capacity_str_ = size_str_ + 1;
-		str_ = new (std::nothrow) char[capacity_str_];
-		if (str_ == nullptr) {
-			throw std::bad_alloc();
-		}
+		allocate_memory(strlen(str));
+
 		errno_t err = strncpy_s(str_, capacity_str_, str, size_str_);
-		MyStringErrors::check_strncpy_s(err);*/
+		MyStringErrors::check_strncpy_s(err);
 	}
 
 	//3. copy constructor from origin string (const std::string&)
-	MyString(const std::string& str) : MyString(str.c_str()) {}
+	MyString(const std::string& str) : MyString(str.c_str()) {
+
+	}
 
 	//4. copy constructor from other MyString
-	MyString(const MyString& other) : MyString(other, static_cast<int>(other.capacity_str_ - 1)){
+	MyString(const MyString& other) : MyString(other.c_str()) {
 		/*MyStringErrors::check_null_pointer_string(other.str_);
 		
 		capacity_str_ = other.capacity_str_;
@@ -54,8 +64,6 @@ public:
 		capacity_str_ = static_cast<size_t>(count + 1);
 		str_ = new (std::nothrow) char[capacity_str_];*/
 		allocate_memory(static_cast<size_t>(count));
-
-		MyStringErrors::check_memory_allocate_exception(str_);
 		
 		errno_t err = strncpy_s(str_, capacity_str_, str, size_str_);
 		MyStringErrors::check_strncpy_s(err);
@@ -65,8 +73,8 @@ public:
 	MyString(const std::string& str, const int count) : MyString(str.c_str(), count) {}
 
 	//7. Initializing constructor with definite number of symbols from MyString
-	MyString(const MyString& other, const int count) {
-		MyStringErrors::check_count_sumbols(count);
+	MyString(const MyString& other, const int count) : MyString(other.c_str(), count) {
+		/*		MyStringErrors::check_count_sumbols(count);
 
 		MyStringErrors::check_null_pointer_string(other.str_, count);
 
@@ -79,18 +87,19 @@ public:
 		MyStringErrors::check_memory_allocate_exception(str_);
 
 		errno_t err = strncpy_s(str_, capacity_str_, other.str_, size_str_);
-		MyStringErrors::check_strncpy_s(err);
+		MyStringErrors::check_strncpy_s(err);*/
 	}
 
 	//8. Initializing constructor with definite number of same symbols
 	MyString(const int count, const char c) {
 		MyStringErrors::check_count_sumbols(count);
 
-		size_str_ = static_cast<size_t>(count);
+		/*		size_str_ = static_cast<size_t>(count);
 		capacity_str_ = static_cast<size_t>(count + 1);
 		str_ = new (std::nothrow) char[capacity_str_];
 
-		MyStringErrors::check_memory_allocate_exception(str_);
+		MyStringErrors::check_memory_allocate_exception(str_);*/
+		allocate_memory(static_cast<size_t>(count));
 
 		memset(str_, c, count);
 		str_[count] = '\0';
@@ -122,17 +131,17 @@ public:
 	}
 
 	//15. Get count of symbols of char in string
-	constexpr size_t size() const {
+	size_t size() const {
 		return size_str_;
 	}
 
 	//16. Get volume of allocated memory
-	constexpr size_t capacity() const {
+	size_t capacity() const {
 		return capacity_str_;
 	}
 
 	//17. Return true if string is empty
-	constexpr bool empty() const {
+	bool empty() const {
 		return str_ == nullptr;
 	}
 
@@ -149,8 +158,46 @@ public:
 	void insert(const int index, const std::string& str, const int count);
 	void insert(const int index, MyString& other, const int count);
 
+	//25, 26, 27. Insert count symbols of string from s_index by index
+	void insert(const int index, const char* str, int s_index, int count);
+	void insert(const int index, const std::string& str, int s_index, int count);
+	void insert(const int index, MyString& other, int s_index, int count);
+
+	//28. Append count symbols
+	void append(const int count, const char ch);
+
+	//29, 30, 31. Append string 
+	void append(const char* str);
+	void append(const std::string& str);
+	void append(MyString& other);
+
+	//32, 33, 34. Append count symbols of string 
+	void append(const char* str, const int count);
+	void append(const std::string& str, const int count);
+	void append(MyString& other, const int count);
+
+	//35, 36, 37. Append count symbols of string from s_index
+	void append(const char* str, const int s_index, const int count);
+	void append(const std::string& str, const int s_index, const int count);
+	void append(MyString& other, const int s_index, const int count);
+
 	//38. Remove count symbols by index
 	void erase(const int index, const int count);
+
+	//39, 40, 41. Replace count symbols on string by index
+	void replace(const int index, const int count, const char* str);
+	void replace(const int index, const int count, const std::string& str);
+	void replace(const int index, const int count, MyString& other);
+
+	//42, 43, 44. Replace count symbols on s_count symbols of string by index
+	void replace(const int index, const int count, const char* str, const int s_count);
+	void replace(const int index, const int count, const std::string& str, const int s_count);
+	void replace(const int index, const int count, MyString& other, const int s_count);
+
+	//45, 46, 47. Replace count symbols on s_count symbols of string by index from s_index
+	void replace(const int index, const int count, const char* str, const int s_index, const int s_count);
+	void replace(const int index, const int count, const std::string& str, const int s_index, const int s_count);
+	void replace(const int index, const int count, MyString& other, const int s_index, const int s_count);
 
 	//48. Return substring from index
 	MyString substr(const int index);
@@ -168,17 +215,38 @@ public:
 	MyString& operator+=(const std::string& str);
 	MyString& operator+=(const MyString& other);
 
+	//56. Operator of indexation
+	char& operator[](const int index);
+	char operator[](const int index) const;
+
+	//57. Lexicographic string comparison (return -1, 0, 1)
+	LexicographicComparisonStringsResult compare(const MyString& other);
+
+	//58, 59, 60. Lexicographic string comparison (return bool)
+	bool operator>(const MyString& other);
+	bool operator<(const MyString& other);
+	bool operator>=(const MyString& other);
+	bool operator<=(const MyString& other);
+	bool operator!=(const MyString& other);
+	bool operator==(const MyString& other);
+
+	//61, 62, 63. Return index of first occurence of the string
+	int find(const char* str);
+	int find(const std::string& str);
+	int find(const MyString& other);
+
+	//64, 65, 66. Return index of first occurence of the string after other index
+	int find(const char* str, int index);
+	int find(const std::string& str, int index);
+	int find(const MyString& other, int index);
+
 private:
 	char* str_;
 	size_t size_str_; 
 	size_t capacity_str_;
 
-	void allocate_memory(size_t size) {
-		str_ = new (std::nothrow) char[size + 1];
-		size_str_ = size;
-		capacity_str_ = size + 1;
-	}
-
+	void allocate_memory(size_t size);
+	void reallocate_memory(size_t size, bool is_equal);
 };
 
 inline std::ostream& operator<<(std::ostream& os, const MyString& str) {
