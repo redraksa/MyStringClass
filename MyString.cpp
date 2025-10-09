@@ -94,6 +94,9 @@ MyString& MyString::operator=(const MyString& other) {
 }
 
 MyString MyString::operator=(const char ch) {
+	if (str_ != nullptr) {
+		delete[] str_;
+	}
 	size_str_ = 1;
 	capacity_str_ = size_str_ + 1;
 
@@ -156,6 +159,10 @@ void MyString::insert(const int index, const char* str) {
 
 	err = memcpy_s(str_ + index, capacity_str_ - index, str, strlen(str));
 	MyStringErrors::check_memcpy_s(err);
+
+	if (is_equal) {
+		delete[] str;
+	}
 
 }
 void MyString::insert(const int index, const std::string& str) {
@@ -283,12 +290,12 @@ void MyString::append(MyString& other, const int s_index, const int count) {
 void MyString::erase(const int index, const int count) {
 	MyStringErrors::check_count_sumbols(count);
 
-	std::cout << "capacity_str_ = " << capacity_str_ << "\nsize_str_ = " << size_str_ << "\n";
-	std::cout << "You here\n";
+	//std::cout << "capacity_str_ = " << capacity_str_ << "\nsize_str_ = " << size_str_ << "\n";
+	//std::cout << "You here\n";
 	//std::cout << "std::max(capacity_str_ - 1, size_str_) = " << std::max(capacity_str_ - 1, size_str_);
-	std::cout << "dest = " << str_ + index << "\ndest_size =" << static_cast<int>(capacity_str_) - 1 - index 
-		<< "\nsrc = " << str_ + index + count << "\ncount = " << static_cast<int>(capacity_str_) - 1 - index - count << "\n";
-	std::cout << "You here 2\n";
+	//std::cout << "dest = " << str_ + index << "\ndest_size =" << static_cast<int>(capacity_str_) - 1 - index 
+	//	<< "\nsrc = " << str_ + index + count << "\ncount = " << static_cast<int>(capacity_str_) - 1 - index - count << "\n";
+	//std::cout << "You here 2\n";
 	MyStringErrors::check_out_of_range_index(static_cast<int>(capacity_str_ != 0 ? capacity_str_ - 1 : 0), index);
 
 	MyStringErrors::check_out_of_range_count(static_cast<int>((capacity_str_ != 0 ? capacity_str_ - 1 : 0) - index), count);
