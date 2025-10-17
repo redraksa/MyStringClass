@@ -7,16 +7,25 @@
 #include "MyStringErrors.h"
 #include <cmath>
 #include <string.h>
+#include <unordered_map>
+#include <functional>
 
 #ifdef __linux__
 #include "LinuxCompat.h"
 #endif
+class AhoCorasick;
 
 enum class LexicographicComparisonStringsResult {
 	cIsGreater = 1,
 	cIsEqual = 0,
 	cIsSmaller = -1
 };
+
+#define MAX_NUMBER_LENGTH 19
+
+class MyString;
+
+
 
 class MyString {
 public:
@@ -220,26 +229,37 @@ public:
 	char operator[](const int index) const;
 
 	//57. Lexicographic string comparison (return -1, 0, 1)
-	LexicographicComparisonStringsResult compare(const MyString& other);
+	LexicographicComparisonStringsResult compare(const MyString& other) const;
 
 	//58, 59, 60. Lexicographic string comparison (return bool)
-	bool operator>(const MyString& other);
-	bool operator<(const MyString& other);
-	bool operator>=(const MyString& other);
-	bool operator<=(const MyString& other);
-	bool operator!=(const MyString& other);
-	bool operator==(const MyString& other);
+	bool operator>(const MyString& other) const;
+	bool operator<(const MyString& other) const;
+	bool operator>=(const MyString& other) const;
+	bool operator<=(const MyString& other) const;
+	bool operator!=(const MyString& other) const;
+	bool operator==(const MyString& other) const;
 
 	//61, 62, 63. Return index of first occurence of the string
-	int find(const char* str);
-	int find(const std::string& str);
-	int find(const MyString& other);
+	int find(const char* str) const;
+	int find(const std::string& str) const;
+	int find(const MyString& other) const;
 
 	//64, 65, 66. Return index of first occurence of the string after other index
-	int find(const char* str, int index);
-	int find(const std::string& str, int index);
-	int find(const MyString& other, int index);
+	int find(const char* str, int index) const;
+	int find(const std::string& str, int index) const;
+	int find(const MyString& other, int index) const;
 
+	//Additional functional of MyString class
+	MyString(MyString&& other) noexcept;
+	MyString(int number);
+	MyString(const long long number);
+	MyString(const float number);
+	MyString& operator=(MyString&& other);
+	char at(const int index);
+	long long to_int();
+	float to_float();
+	void findAll(std::unordered_map<MyString, std::vector<size_t>>& dictionary) const;
+	std::vector<size_t> findAll(const MyString& other) const;
 private:
 	char* str_;
 	size_t size_str_; 
@@ -249,11 +269,31 @@ private:
 	void reallocate_memory(size_t size, bool is_equal);
 };
 
+namespace std {
+	template<>
+	struct hash<MyString> {
+		size_t operator()(const MyString& s) const {
+			// Простая хеш-функция для C-строки
+			size_t result = 0;
+			const size_t prime = 31;
+			for (int i = 0; i < s.size(); ++i) {
+				result = result * prime + s[i];
+			}
+			return result;
+		}
+	};
+}
+
 inline std::ostream& operator<<(std::ostream& os, const MyString& str) {
 	os << (str.c_str() != nullptr ? str.c_str() : "");
 	return os;
 }
 
-
+inline std::istream& operator>>(std::istream& is, MyString& str) {
+	std::string temp;
+	is >> temp;
+	str = MyString(temp.c_str());
+	return is;
+}
 #endif // _MYSTRING_H_
 

@@ -1,4 +1,5 @@
 #include "MyString.h"
+#include "AhoCorasick.h"
 
 void MyString::allocate_memory(size_t size) {
 	str_ = new (std::nothrow) char[size + 1];
@@ -6,6 +7,7 @@ void MyString::allocate_memory(size_t size) {
 
 	size_str_ = size;
 	capacity_str_ = size + 1;
+	str_[size] = '\0';
 }
 
 void MyString::reallocate_memory(size_t size, bool is_equal) {
@@ -466,13 +468,13 @@ char& MyString::operator[](const int index) {
 	return this->str_[index];
 }
 
-char MyString::operator[](const int index) const {
+char MyString::operator[](const int index) const { 
 	MyStringErrors::check_out_of_range_index(this->c_str(), index);
 
 	return this->str_[index];
 }
 
-LexicographicComparisonStringsResult MyString::compare(const MyString& other) {
+LexicographicComparisonStringsResult MyString::compare(const MyString& other) const {
 
 	if (str_ == nullptr && other.c_str() != nullptr) {
 		return LexicographicComparisonStringsResult::cIsSmaller;
@@ -495,7 +497,7 @@ LexicographicComparisonStringsResult MyString::compare(const MyString& other) {
 	return LexicographicComparisonStringsResult::cIsEqual;
 }
 
-bool MyString::operator>(const MyString& other) {
+bool MyString::operator>(const MyString& other) const {
 	if (this->compare(other) == LexicographicComparisonStringsResult::cIsGreater) {
 		return true;
 	}
@@ -503,7 +505,7 @@ bool MyString::operator>(const MyString& other) {
 		return false;
 	}
 }
-bool MyString::operator<(const MyString& other) {
+bool MyString::operator<(const MyString& other) const {
 	if (this->compare(other) == LexicographicComparisonStringsResult::cIsSmaller) {
 		return true;
 	}
@@ -511,16 +513,16 @@ bool MyString::operator<(const MyString& other) {
 		return false;
 	}
 }
-bool MyString::operator>=(const MyString& other) {
+bool MyString::operator>=(const MyString& other) const {
 	return !this->operator<(other);
 }
-bool MyString::operator<=(const MyString& other) {
+bool MyString::operator<=(const MyString& other) const {
 	return !this->operator>(other);
 }
-bool MyString::operator!=(const MyString& other) {
+bool MyString::operator!=(const MyString& other) const {
 	return !this->operator==(other);
 }
-bool MyString::operator==(const MyString& other) {
+bool MyString::operator==(const MyString& other) const {
 	if (this->compare(other) == LexicographicComparisonStringsResult::cIsEqual) {
 		return true;
 	}
@@ -529,18 +531,18 @@ bool MyString::operator==(const MyString& other) {
 	}
 }
 
-int MyString::find(const char* str) {
+int MyString::find(const char* str) const {
 	return this->find(str, 0);
 }
-int MyString::find(const std::string& str) {
+int MyString::find(const std::string& str) const {
 	return this->find(str.c_str(), 0);
 }
-int MyString::find(const MyString& other) {
+int MyString::find(const MyString& other) const {
 	return this->find(other.c_str(), 0);
 }
 
 
-int MyString::find(const char* str, const int index) {
+int MyString::find(const char* str, const int index) const {
 	MyStringErrors::check_out_of_range_index(str_, index);
 	
 	char* substing_ptr = strstr(str_ + index, str);
@@ -552,12 +554,223 @@ int MyString::find(const char* str, const int index) {
 		return -1;
 	}
 }
-int MyString::find(const std::string& str, const int index) {
+int MyString::find(const std::string& str, const int index) const {
 	return this->find(str.c_str(), index);
 }
-int MyString::find(const MyString& other, const int index) {
+int MyString::find(const MyString& other, const int index) const {
 	return this->find(other.c_str(), index);
 }
+
+MyString::MyString(MyString&& other) noexcept : 
+	str_(other.str_), size_str_(other.size_str_), capacity_str_(other.capacity_str_) {
+	other.str_ = nullptr;
+	other.size_str_ = 0;
+	other.capacity_str_ = 0;
+}
+
+MyString::MyString(const int number) : MyString(static_cast<long long>(number)) {}
+
+MyString::MyString(const long long number) {
+	if (number == 0) {
+		allocate_memory(1);
+		str_[0] = '0';
+		return;
+	}
+
+	long long current_number = number;
+	MyStringErrors::check_boundary_number(current_number);
+	char numbers[MAX_NUMBER_LENGTH] = { 0 };
+
+
+	bool is_negative = number < 0 ? true : false;
+	int length;
+	current_number = abs(current_number);
+	for (length = 0; current_number != 0; ++length) {
+		numbers[length] = static_cast<char>(current_number % 10 + 48);
+		current_number /= 10;
+	}
+
+	allocate_memory(is_negative ? length + 1: length);
+	
+
+	if (is_negative) {
+		str_[0] = '-';
+
+		for (int i = 1; i < length + 1; ++i) {
+			str_[i] = numbers[length - i];
+		}
+	}
+	else {
+		for (int i = 0; i < length; ++i) {
+			str_[i] = numbers[length - i - 1];
+		}
+	}
+}
+
+MyString::MyString(const float number) {
+	const int PRECISION = 10;
+
+	if (number == 0.0f) {
+		allocate_memory(1);
+		str_[0] = '0';
+		return;
+	}
+
+	bool is_negative = number < 0 ? true : false;
+	float abs_number = abs(number);
+
+	long long integer_part = static_cast<long long>(abs_number);
+	float fractional = abs_number - static_cast<float>(integer_part);
+
+	for (int i = 0; i < PRECISION; ++i) {
+		if (fractional != static_cast<float>(static_cast<long long>(fractional))) {
+			fractional *= 10;
+		}
+		else {
+			break;
+		}
+	}
+
+	long long fractional_part = static_cast<long long>(fractional);
+
+	MyString integer_str(is_negative ? -integer_part : integer_part),
+		fractional_str(fractional_part);
+
+	*this = integer_str + "." + fractional_str;
+}
+
+MyString& MyString::operator=(MyString&& other) {
+	if (this != &other) {
+		delete[] str_;
+
+		str_ = other.str_;
+		size_str_ = other.size_str_;
+		capacity_str_ = other.capacity_str_;
+
+		other.str_ = nullptr;
+		other.size_str_ = 0;
+		other.capacity_str_ = 0;
+	}
+	
+	return *this;
+}
+
+void MyString::findAll(std::unordered_map<MyString, std::vector<size_t>>& dictionary) const {
+	AhoCorasick AC(dictionary);
+
+	AC.add_words();
+	AC.add_suff();
+	AC.add_output_ref();
+	AC.check_string(*this);
+	/*	std::cout << "\nString: " << this->c_str() << "\n";
+	for (auto& string : AC.includings) {
+		std::cout << "string \"" << string.first << "\" there are in these indexes: ";
+		for (auto& index : string.second) {
+			std::cout << index << ", ";
+		}
+		std::cout << "\n";
+	}*/
+
+}
+
+std::vector<size_t> MyString::findAll(const MyString& other) const {
+	std::vector<size_t> includings = {};
+	if (other.size_str_ > size_str_) {
+		return includings;
+	}
+	if (other.size_str_ == 0) {
+		for (size_t i = 0; i < size_str_; ++i) {
+			includings.push_back(i);
+		}
+		return includings;
+	}
+
+	std::vector<size_t> pi(other.size_str_, 0);
+	for (size_t i = 1, k = 0; i < other.size_str_; ++i) {
+		while (k > 0 && other[k] != other[i]) {
+			k = pi[k - 1];
+		}
+		if (other[k] == other[i]) {
+			++k;
+		}
+		pi[i] = k;
+	}
+
+	for (size_t i = 0, j = 0; i < size_str_; ++i) {
+		while (j > 0 && str_[i] != other[j]) {
+			j = pi[j - 1];
+		}
+
+		if (str_[i] == other[j]) {
+			++j;
+		}
+
+		if (j == other.size_str_) {
+			includings.push_back(i - other.size_str_ + 1);
+			j = pi[j - 1];
+		}
+	}
+
+	return includings;
+	
+}
+
+char MyString::at(const int index) {
+	MyStringErrors::check_out_of_range_index(str_, index);
+
+	return str_[index];
+}
+
+long long MyString::to_int() {
+	MyStringErrors::check_null_pointer_string(str_);
+	MyStringErrors::check_invalid_symbol_integer(str_);
+
+	long long number = 0;
+	bool is_negative = false;
+	int i = 0;
+	if (str_[0] == '-') {
+		is_negative = true;
+		i = 1;
+	}
+	for (i; i < MAX_NUMBER_LENGTH; ++i) {
+		number += str_[i] * static_cast<long long>(pow(10, i - static_cast<float>(is_negative)));
+	}
+
+	if (is_negative) {
+		number *= -1;
+	}
+
+	return number;
+}
+
+float MyString::to_float() {
+	MyStringErrors::check_null_pointer_string(str_);
+	MyStringErrors::check_invalid_symbol_float(str_);
+
+	int i;
+	bool has_dot = true;
+	for (i = 0; i < size_str_ && str_[i] != '.'; ++i);
+	if (i == size_str_) {
+		--i;
+		has_dot = false;
+	}
+
+	MyString integer_str(this->substr(0, i));
+	long long integer_part = integer_str.to_int();
+	if (has_dot) {
+		MyString float_str(this->substr(i + 1));
+		long long float_part = float_str.to_int();
+
+		float part = static_cast<float>(float_part / pow(10, float_str.size()));
+
+		return static_cast<float>(integer_part) + part;
+	}
+	else {
+		return static_cast<float>(integer_part);
+	}
+	
+}
+
 
 
 /*

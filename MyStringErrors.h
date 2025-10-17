@@ -1,5 +1,5 @@
-#ifndef _MYSTRINGERRORS_
-#define _MYSTRINGERRORS_
+#ifndef _MYSTRINGERRORS_H_
+#define _MYSTRINGERRORS_H_
 
 #include <iostream>
 #include <exception>
@@ -82,6 +82,40 @@ public:
 	static void check_memcpy_s(errno_t err) {
 		if (err != 0) {
 			throw std::runtime_error("memory copy exception");
+		}
+	}
+
+	static void check_boundary_number(long long& number) {
+		if (!(number >= LLONG_MIN + 1 && number <= LLONG_MAX)) {
+			throw std::runtime_error("number is out from allowed range");
+		}
+	}
+
+	static void check_invalid_symbol_integer(const char* str) {
+		int i = 0;
+		if (str[0] == '-') {
+			i = 1;
+		}
+		for (i; i < strlen(str); ++i) {
+			if (!(str[i] >= '0' && str[i] <= '9')) {
+				throw std::runtime_error("string has unresolved character to convert to integer number");
+			}
+		}
+	}
+
+	static void check_invalid_symbol_float(const char* str) {
+		int i = 0;
+		if (str[0] == '-') {
+			i = 1;
+		}
+		bool flag_dot = false;
+		for (i; i < strlen(str); ++i) {
+			if (!(str[i] >= '0' && str[i] <= '9' || str[i] == '.' && i != 0 && i != strlen(str) - 1 && !flag_dot)) {
+				throw std::runtime_error("string has unresolved character to convert to integer number");
+			}
+			if (str[i] == '.') {
+				flag_dot = true;
+			}
 		}
 	}
 
