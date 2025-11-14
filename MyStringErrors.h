@@ -5,10 +5,13 @@
 #include <exception>
 #include <string>
 #include <stdexcept>
+#include <sstream>
 
 #ifdef __linux__
 #include "LinuxCompat.h"
 #endif
+
+class MyString;
 
 class MyStringErrors {
 public:
@@ -54,16 +57,33 @@ public:
 		}
 	}
 
-	static void check_out_of_range_index(int size_str, const int index) {
+	static void check_out_of_range_index(const int size_str, const int index) {
 		if ((index >= size_str && index + size_str != 0) || index < 0) {
 			throw std::out_of_range("Index " + std::to_string(index) +
 				" is out of range [0, " + std::to_string(size_str) + "]");
 		}
 	}
 
+	static void check_out_of_range_iterator(const int size_str, const int index) {
+		if (index > size_str || index < -1) {
+			throw std::out_of_range("Index " + std::to_string(index) +
+				" is out of range [0, " + std::to_string(size_str) + "]");
+		}
+	}
+
 	static void check_out_of_range_index(const char* str, const int index) {
-		if (index >= static_cast<int>(strlen(str)) || index < 0) {
+		if (index >= static_cast<int>(strlen(str)) && strlen(str) != 0 || index < 0) {
 			throw std::out_of_range("index of string must be lesser than length of string and positive");
+		}
+	}
+
+	static void check_out_of_range_index(const char* begin, const char* end, const char* current) {
+		if (current >= end || current <= begin) {
+			std::ostringstream oss;
+			oss << "Current iterator of collection (" << static_cast<const void*>(current)
+				<< ") is beyond from boundaries of collection: begin (" << static_cast<const void*>(begin)
+				<< "), end (" << static_cast<const void*>(end) << ")!";
+			throw std::out_of_range(oss.str());
 		}
 	}
 
@@ -116,6 +136,24 @@ public:
 			if (str[i] == '.') {
 				flag_dot = true;
 			}
+		}
+	}
+
+	static void check_iterators(const MyString* str1, const MyString* str2) {
+		if (str1 != str2) {
+			throw std::invalid_argument("Iterators do not belong to same string");
+		}
+	}
+
+	static void check_iterator(const char* str1, const char* str2) {
+		if (str1 != str2) {
+			throw std::runtime_error("Iterator does not bolong to this string");
+		}
+	}
+
+	static void check_iterator_validity(const MyString* str1, const MyString* str2) {
+		if (str1 != str2) {
+			throw std::invalid_argument("Iterator does not belong to this MyString");
 		}
 	}
 

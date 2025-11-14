@@ -1,6 +1,55 @@
 #include "MyString.h"
 #include "AhoCorasick.h"
 
+MyString::MyString() : str_(nullptr), size_str_(0), capacity_str_(0) {}
+
+MyString::MyString(const char* str) {
+	MyStringErrors::check_null_pointer_string(str);
+
+	allocate_memory(strlen(str));
+
+	errno_t err = strncpy_s(str_, capacity_str_, str, size_str_);
+	MyStringErrors::check_strncpy_s(err);
+}
+
+MyString::MyString(const std::string& str) : MyString(str.c_str()) {}
+
+MyString::MyString(const MyString& other) : MyString(other.c_str()) {}
+
+
+MyString::MyString(const char* str, const int count) {
+	MyStringErrors::check_count_sumbols(count);
+
+	MyStringErrors::check_null_pointer_string(str, count);
+
+	MyStringErrors::check_out_of_range_count(str, count);
+
+	allocate_memory(static_cast<size_t>(count));
+
+	errno_t err = strncpy_s(str_, capacity_str_, str, size_str_);
+	MyStringErrors::check_strncpy_s(err);
+}
+
+
+MyString::MyString(const std::string& str, const int count) : MyString(str.c_str(), count) {}
+
+
+MyString::MyString(const MyString& other, const int count) : MyString(other.c_str(), count) {}
+
+MyString::MyString(const int count, const char c) {
+	MyStringErrors::check_count_sumbols(count);
+
+	allocate_memory(static_cast<size_t>(count));
+
+	memset(str_, c, count);
+	str_[count] = '\0';
+}
+
+MyString::~MyString() {
+	delete[] str_;
+	str_ = nullptr;
+}
+
 void MyString::allocate_memory(size_t size) {
 	str_ = new (std::nothrow) char[size + 1];
 	MyStringErrors::check_memory_allocate_exception(str_);
@@ -109,7 +158,23 @@ MyString MyString::operator=(const char ch) {
 	MyStringErrors::check_strncpy_s(err);
 	return *this;
 }
-// подумать над вставкой
+
+char* MyString::c_str() const {
+	return str_;
+}
+
+size_t MyString::size() const {
+	return size_str_;
+}
+
+size_t MyString::capacity() const {
+	return capacity_str_;
+}
+
+bool MyString::empty() const {
+	return str_ == nullptr;
+}
+
 void MyString::insert(const int index, const int count, char ch) {
 	/*	MyString char_str(count, ch), left_part = this->substr(0, index),
 		right_part = this->substr(index);
@@ -133,6 +198,34 @@ void MyString::insert(const int index, const int count, char ch) {
 
 	memset(str_ + index, ch, count);
 	
+}
+
+template <typename IteratorType>
+void MyString::insert(const IteratorType& iter, const int count, const char ch) {
+	MyStringErrors::check_iterator_validity(this, iter.get_container());
+
+	MyStringErrors::check_count_sumbols(count);
+
+	if (count + size_str_ >= capacity_str_) {
+		reallocate_memory(count + size_str_, false);
+	}
+	else {
+		size_str_ += count;
+	}
+
+	{
+		auto border_it = rbegin() - (size_str_ - count - iter.get_position());
+		for (auto it = rbegin(); it < border_it; ++it) {
+			*it = *(it - count);
+		}
+	}
+
+	iterator border_it(this, iter.get_position() + (count - 1));
+	for (auto it = begin() + iter.get_position(); it <= border_it; ++it) { //border_it = iter + (count - 1)
+		*it = ch;
+	}
+
+	str_[size_str_] = '\0';
 }
 
 void MyString::insert(const int index, const char* str) {
@@ -180,6 +273,57 @@ void MyString::insert(const int index, const MyString& other) {
 	this->insert(index, other.c_str());
 }
 
+template <typename IteratorType>
+void MyString::insert(const IteratorType& iter, const char* str) {
+	MyStringErrors::check_iterator_validity(this, iter.get_container());
+
+	//MyStringErrors::check_out_of_range_index(static_cast<int>(capacity_str_ + 1), iter.get_position());
+
+	bool is_equal = false;
+
+	if (str == str_) {
+		is_equal = true;
+	}
+
+	if (strlen(str) + size_str_ >= capacity_str_) {
+		reallocate_memory(strlen(str) + size_str_, is_equal);
+	}
+	else {
+		size_str_ += strlen(str);
+	}
+
+	if (strlen(str) == 0) {
+		return;
+	}
+
+	size_t size_str = strlen(str);
+
+	{
+		auto border_it = rbegin() - (size_str_ - size_str - iter.get_position());
+		for (auto it = rbegin(); it < border_it; ++it) {
+			*it = *(it - size_str);
+		}
+	}
+
+	iterator border_it(this, iter.get_position() + (size_str - 1));
+	for (auto it = begin() + iter.get_position(); it <= border_it; ++it) {
+		*it = str[it.get_position() - iter.get_position()];
+	}
+
+
+	if (is_equal) {
+		delete[] str;
+	}
+}
+template <typename IteratorType>
+void MyString::insert(const IteratorType& iter, const std::string& str) {
+	this->insert(iter, str.c_str());
+}
+template <typename IteratorType>
+void MyString::insert(const IteratorType& iter, const MyString& other) {
+	this->insert(iter, other.c_str());
+}
+
 void MyString::insert(const int index, const char* str, const int count) {
 	MyStringErrors::check_count_sumbols(count);
 
@@ -210,7 +354,7 @@ void MyString::insert(const int index, const char* str, const int count) {
 void MyString::insert(const int index, const std::string& str, const int count) {
 	this->insert(index, str.c_str(), count);
 }
-void MyString::insert(const int index, MyString& other, const int count) {
+void MyString::insert(const int index, const MyString& other, const int count) {
 	this->insert(index, other.c_str(), count);
 	/*	MyStringErrors::check_out_of_range_index(static_cast<int>(capacity_str_ - 1), index);
 
@@ -218,6 +362,62 @@ void MyString::insert(const int index, MyString& other, const int count) {
 		right_part = this->substr(index);
 
 	*this = left_part + other.substr(0, count) + right_part;*/
+}
+
+template <typename IteratorType>
+void MyString::insert(const IteratorType& iter, const char* str, const int count) {
+	MyStringErrors::check_iterator_validity(this, iter.get_container());
+
+	MyStringErrors::check_count_sumbols(count);
+
+	MyStringErrors::check_out_of_range_index(static_cast<int>(capacity_str_ + 1), iter.get_position());
+
+	MyStringErrors::check_out_of_range_count(static_cast<int>(strlen(str)), count);
+
+	bool is_equal = false;
+
+	if (str == str_) {
+		is_equal = true;
+	}
+
+	if (count + size_str_ >= capacity_str_) {
+		reallocate_memory(count + size_str_, is_equal);
+	}
+	else {
+		size_str_ += count;
+	}
+
+	if (count == 0 || strlen(str) == 0) {
+		return;
+	}
+
+	{
+		auto border_it = rbegin() - (size_str_ - count - iter.get_position());
+		for (auto it = rbegin(); it < border_it; ++it) {
+			*it = *(it - count);
+		}
+	}
+
+	{
+		iterator border_it(this, iter.get_position() + (count - 1));
+		for (auto it = begin() + iter.get_position(); it <= border_it; ++it) {
+			*it = str[it.get_position() - iter.get_position()];
+		}
+	}
+
+
+	if (is_equal) {
+		delete[] str;
+	}
+
+}
+template <typename IteratorType>
+void MyString::insert(const IteratorType& iter, const std::string& str, const int count) {
+	this->insert(iter, str.c_str(), count);
+}
+template <typename IteratorType>
+void MyString::insert(const IteratorType& iter, const MyString& other, const int count) {
+	this->insert(iter, other.c_str(), count);
 }
 
 void MyString::insert(const int index, const char* str, int s_index, int count) {
@@ -251,9 +451,16 @@ void MyString::insert(const int index, const char* str, int s_index, int count) 
 void MyString::insert(const int index, const std::string& str, int s_index, int count) {
 	this->insert(index, str.c_str(), s_index, count);
 }
-void MyString::insert(const int index, MyString& other, int s_index, int count) {
+void MyString::insert(const int index, const MyString& other, int s_index, int count) {
 	this->insert(index, other.c_str(), s_index, count);
 }
+
+/*template <typename IteratorType1, typename IteratorType2>
+void MyString::insert(const IteratorType1& iter, const IteratorType2& s_iter, const int count) {
+	this->insert(iter, *(s_iter.get_container()), s_iter, count);
+}*/
+
+
 
 void MyString::append(const int count, const char ch) {
 	this->insert(static_cast<int>(size_str_), count, ch);
@@ -265,7 +472,7 @@ void MyString::append(const char* str) {
 void MyString::append(const std::string& str) {
 	this->insert(static_cast<int>(size_str_), str.c_str());
 }
-void MyString::append(MyString& other) {
+void MyString::append(const MyString& other) {
 	this->insert(static_cast<int>(size_str_), other.c_str());
 }
 
@@ -275,7 +482,7 @@ void MyString::append(const char* str, const int count) {
 void MyString::append(const std::string& str, const int count) {
 	this->insert(static_cast<int>(size_str_), str.c_str(), count);
 }
-void MyString::append(MyString& other, const int count) {
+void MyString::append(const MyString& other, const int count) {
 	this->insert(static_cast<int>(size_str_), other.c_str(), count);
 }
 
@@ -285,7 +492,7 @@ void MyString::append(const char* str, const int s_index, const int count) {
 void MyString::append(const std::string& str, const int s_index, const int count) {
 	this->insert(static_cast<int>(size_str_), str.c_str(), s_index, count);
 }
-void MyString::append(MyString& other, const int s_index, const int count) {
+void MyString::append(const MyString& other, const int s_index, const int count) {
 	this->insert(static_cast<int>(size_str_), other.c_str(), s_index, count);
 }
 
@@ -316,7 +523,7 @@ void MyString::replace(const int index, const int count, const char* str) {
 void MyString::replace(const int index, const int count, const std::string& str) {
 	this->replace(index, count, str.c_str());
 }
-void MyString::replace(const int index, const int count, MyString& other) {
+void MyString::replace(const int index, const int count, const MyString& other) {
 	this->replace(index, count, other.c_str());
 }
 
@@ -327,22 +534,23 @@ void MyString::replace(const int index, const int count, const char* str, const 
 void MyString::replace(const int index, const int count, const std::string& str, const int s_count) {
 	this->replace(index, count, str.c_str(), s_count);
 }
-void MyString::replace(const int index, const int count, MyString& other, const int s_count) {
+void MyString::replace(const int index, const int count, const MyString& other, const int s_count) {
 	this->replace(index, count, other.c_str(), s_count);
 }
 
 void MyString::replace(const int index, const int count, const char* str, const int s_index, const int s_count) {
+	if (str_ != nullptr) this->erase(index, count); //
 	this->erase(index, count);
 	this->insert(index, str, s_index, s_count);
 }
 void MyString::replace(const int index, const int count, const std::string& str, const int s_index, const int s_count) {
 	this->replace(index, count, str.c_str(), s_index, s_count);
 }
-void MyString::replace(const int index, const int count, MyString& other, const int s_index, const int s_count) {
+void MyString::replace(const int index, const int count, const MyString& other, const int s_index, const int s_count) {
 	this->replace(index, count, other.c_str(), s_index, s_count);
 }
 
-MyString MyString::substr(const int index) {
+MyString MyString::substr(const int index) const {
 	MyStringErrors::check_out_of_range_index(static_cast<int>(size_str_), index);
 
 	MyString other(this->c_str());
@@ -359,7 +567,7 @@ MyString MyString::substr(const int index) {
 	return other;
 }
 
-MyString MyString::substr(const int index, const int count) {
+MyString MyString::substr(const int index, const int count) const {
 	MyStringErrors::check_count_sumbols(count);
 
 	MyStringErrors::check_out_of_range_index(static_cast<int>(capacity_str_ - 1), count);
@@ -463,13 +671,13 @@ MyString& MyString::operator+=(const MyString& other) {
 }
 
 char& MyString::operator[](const int index) {
-	MyStringErrors::check_out_of_range_index(this->c_str(), index);
+	MyStringErrors::check_out_of_range_index(size_str_, index);
 
 	return this->str_[index];
 }
 
 char MyString::operator[](const int index) const { 
-	MyStringErrors::check_out_of_range_index(this->c_str(), index);
+	MyStringErrors::check_out_of_range_index(size_str_, index);
 
 	return this->str_[index];
 }
@@ -492,6 +700,14 @@ LexicographicComparisonStringsResult MyString::compare(const MyString& other) co
 		if (this->operator[](i) < other.operator[](i)) {
 			return LexicographicComparisonStringsResult::cIsSmaller;
 		}
+	}
+
+	if (size_str_ > small_size) {
+		return LexicographicComparisonStringsResult::cIsSmaller;
+	}
+
+	if (other.size_str_ > small_size) {
+		return LexicographicComparisonStringsResult::cIsGreater;
 	}
 
 	return LexicographicComparisonStringsResult::cIsEqual;
@@ -523,7 +739,7 @@ bool MyString::operator!=(const MyString& other) const {
 	return !this->operator==(other);
 }
 bool MyString::operator==(const MyString& other) const {
-	if (this->compare(other) == LexicographicComparisonStringsResult::cIsEqual) {
+	if (this->compare(other) == LexicographicComparisonStringsResult::cIsEqual && size_str_ == other.size_str_) {
 		return true;
 	}
 	else {
@@ -639,7 +855,7 @@ MyString::MyString(const float number) {
 	*this = integer_str + "." + fractional_str;
 }
 
-MyString& MyString::operator=(MyString&& other) {
+MyString& MyString::operator=(MyString&& other) noexcept {
 	if (this != &other) {
 		delete[] str_;
 
@@ -662,15 +878,6 @@ void MyString::findAll(std::unordered_map<MyString, std::vector<size_t>>& dictio
 	AC.add_suff();
 	AC.add_output_ref();
 	AC.check_string(*this);
-	/*	std::cout << "\nString: " << this->c_str() << "\n";
-	for (auto& string : AC.includings) {
-		std::cout << "string \"" << string.first << "\" there are in these indexes: ";
-		for (auto& index : string.second) {
-			std::cout << index << ", ";
-		}
-		std::cout << "\n";
-	}*/
-
 }
 
 std::vector<size_t> MyString::findAll(const MyString& other) const {
@@ -715,13 +922,13 @@ std::vector<size_t> MyString::findAll(const MyString& other) const {
 	
 }
 
-char MyString::at(const int index) {
+char MyString::at(const int index) const {
 	MyStringErrors::check_out_of_range_index(str_, index);
 
 	return str_[index];
 }
 
-long long MyString::to_int() {
+long long MyString::to_int() const {
 	MyStringErrors::check_null_pointer_string(str_);
 	MyStringErrors::check_invalid_symbol_integer(str_);
 
@@ -743,7 +950,7 @@ long long MyString::to_int() {
 	return number;
 }
 
-float MyString::to_float() {
+float MyString::to_float() const {
 	MyStringErrors::check_null_pointer_string(str_);
 	MyStringErrors::check_invalid_symbol_float(str_);
 
@@ -769,9 +976,441 @@ float MyString::to_float() {
 		return static_cast<float>(integer_part);
 	}
 	
+
+}
+
+MyString& MyString::operator+=(const char ch) {
+	this->append(1, ch);
+	return *this;
+}
+
+/*template<typename IteratorType, typename ReferenceType, typename StringType>
+MyString::base_iterator_<IteratorType, ReferenceType, StringType>::base_iterator_() : ptr_(nullptr), pos_(0) {};
+
+template<typename IteratorType, typename ReferenceType, typename StringType>
+MyString::base_iterator_<IteratorType, ReferenceType, StringType>::base_iterator_(StringType ptr, size_t pos) : ptr_(ptr), pos_(pos) {};
+
+template<typename IteratorType, typename ReferenceType, typename StringType>
+ReferenceType MyString::base_iterator_<IteratorType, ReferenceType, StringType>::operator*() const {
+	return this->ptr_->operator[](this->pos_);
+}
+
+template<typename IteratorType, typename ReferenceType, typename StringType>
+bool MyString::base_iterator_<IteratorType, ReferenceType, StringType>::operator==(const IteratorType& other) const {
+	return ptr_ == other.ptr_ && pos_ == other.pos_ || this->pos_ == -1;
+}
+
+template<typename IteratorType, typename ReferenceType, typename StringType>
+bool MyString::base_iterator_<IteratorType, ReferenceType, StringType>::operator!=(const IteratorType& other) const {
+	return !this->operator==(other) || this->pos_ == 0;
+}
+
+template<typename IteratorType, typename StringType>
+IteratorType MyString::advanced_iterator_<IteratorType, typename StringType>::operator+(ptrdiff_t n) const {
+	//const IteratorType* iter = static_cast<const IteratorType*>(this);
+	MyStringErrors::check_out_of_range_index(this->get_ptr()->size_str_, this->get_pos() + n);
+	return IteratorType(this->get_ptr(), this->get_pos() + n);
+}
+
+template<typename IteratorType, typename StringType>
+IteratorType MyString::advanced_iterator_<IteratorType, StringType>::operator-(ptrdiff_t n) const {
+	//const IteratorType* iter = static_cast<const IteratorType*>(this);
+	MyStringErrors::check_out_of_range_index(this->get_ptr()->size_str_, this->get_pos() - n);
+	return IteratorType(this->get_ptr(), this->get_pos() - n);
+}
+
+template<typename IteratorType, typename StringType>
+ptrdiff_t MyString::advanced_iterator_<IteratorType, StringType>::operator-(const IteratorType& other) const {
+	//const IteratorType* iter = static_cast<const IteratorType*>(this);
+	MyStringErrors::check_iterators(this->get_ptr(), other.ptr_);
+	return static_cast<ptrdiff_t>(this->get_pos()) - static_cast<ptrdiff_t>(other.pos_);
+}
+
+template<typename IteratorType, typename StringType>
+StringType MyString::advanced_iterator_<IteratorType, StringType>::get_ptr() const {
+	const IteratorType* iter = static_cast<const IteratorType*>(this);
+	return iter->ptr_;
+}
+
+template<typename IteratorType, typename StringType>
+size_t MyString::advanced_iterator_<IteratorType, StringType>::get_pos() const {
+	const IteratorType* iter = static_cast<const IteratorType*>(this);
+	return iter->pos_;
+}
+
+template<typename IteratorType, typename StringType>
+bool MyString::advanced_iterator_<IteratorType, StringType>::operator>(const IteratorType& other) const {
+	MyStringErrors::check_iterators(this->get_ptr(), other.get_ptr());
+	return this->get_pos() > other.get_pos();
+}
+
+template<typename IteratorType, typename StringType>
+bool MyString::advanced_iterator_<IteratorType, StringType>::operator<(const IteratorType& other) const {
+	MyStringErrors::check_iterators(this->get_ptr(), other.get_ptr());
+	return this->get_pos() < other.get_pos();
+}
+
+template<typename IteratorType, typename StringType>
+bool MyString::advanced_iterator_<IteratorType, StringType>::operator>=(const IteratorType& other) const {
+	return !this->operator<(other);
+}
+
+template<typename IteratorType, typename StringType>
+bool MyString::advanced_iterator_<IteratorType, StringType>::operator<=(const IteratorType& other) const {
+	return !this->operator>(other);
+}
+
+template<typename IteratorType>
+IteratorType& MyString::direct_iterator_<IteratorType>::operator++() {
+	IteratorType* derived = static_cast<IteratorType*>(this);
+	MyStringErrors::check_out_of_range_index(derived->ptr_->size_str_, derived->pos_);
+	++derived->pos_;
+	return *derived;
+}
+
+template<typename IteratorType>
+IteratorType MyString::direct_iterator_<IteratorType>::operator++(int) {
+	IteratorType* derived = static_cast<IteratorType*>(this);
+	//MyStringErrors::check_out_of_range_index(derived->ptr_->size_str_, derived->pos_);
+
+	IteratorType temp = *derived;
+	++(*derived);
+	return temp;
+}
+
+template<typename IteratorType>
+IteratorType& MyString::reverse_iterator_<IteratorType>::operator--() {
+	IteratorType* derived = static_cast<IteratorType*>(this);
+	//MyStringErrors::check_out_of_range_index(derived->ptr_->size_str_, derived->pos_);
+	MyStringErrors::check_out_of_range_index(derived->get_ptr()->size_str_, derived->get_pos());
+
+	//--derived->pos_;
+	--derived->pos_;
+	return *derived;
+}
+
+template<typename IteratorType>
+IteratorType MyString::reverse_iterator_<IteratorType>::operator--(int) {
+	IteratorType* derived = static_cast<IteratorType*>(this);
+	//MyStringErrors::check_out_of_range_index(derived->ptr_->size_str_, derived->pos_);
+	MyStringErrors::check_out_of_range_index(derived->get_ptr()->size_str_, derived->get_pos());
+
+	IteratorType temp = *derived;
+	--(*derived);
+	return temp;
+}
+
+template class MyString::base_iterator_<MyString::const_iterator, const char&, const MyString*>;
+template class MyString::base_iterator_<MyString::iterator, char&, MyString*>;
+template class MyString::base_iterator_<MyString::const_reverse_iterator, const char&, const MyString*>;
+template class MyString::base_iterator_<MyString::reverse_iterator, char&, MyString*>;
+
+template class MyString::direct_iterator_<MyString::const_iterator>;
+template class MyString::direct_iterator_<MyString::iterator>;
+
+template class MyString::reverse_iterator_<MyString::const_reverse_iterator>;
+template class MyString::reverse_iterator_<MyString::reverse_iterator>;
+
+template class MyString::advanced_iterator_<MyString::const_iterator, const MyString*>;
+template class MyString::advanced_iterator_<MyString::iterator, MyString*>;
+template class MyString::advanced_iterator_<MyString::const_reverse_iterator, const MyString*>;
+template class MyString::advanced_iterator_<MyString::reverse_iterator, MyString*>;
+
+MyString::reversed_wrapper::reversed_wrapper(MyString* ptr, size_t pos) : reverse_iterator(ptr, pos) {}
+
+MyString::reversed_wrapper& MyString::reversed_wrapper::operator++() {
+	reverse_iterator::operator--();
+	return *this;
+}
+
+MyString::reversed_wrapper MyString::reversed_wrapper::operator++(int) {
+	reversed_wrapper* derived = this;
+	MyStringErrors::check_out_of_range_index(derived->ptr_->size_str_, derived->pos_);
+
+	reversed_wrapper temp = *derived;
+	--(*derived);
+	return temp;
+}
+
+MyString::const_reversed_wrapper::const_reversed_wrapper(const MyString* ptr, size_t pos) : const_reverse_iterator(ptr, pos) {}
+
+MyString::const_reversed_wrapper& MyString::const_reversed_wrapper::operator++() {
+	const_reverse_iterator::operator--();
+	return *this;
+}
+
+MyString::const_reversed_wrapper MyString::const_reversed_wrapper::operator++(int) {
+	const_reversed_wrapper* derived = this;
+	MyStringErrors::check_out_of_range_index(derived->ptr_->size_str_, derived->pos_);
+
+	const_reversed_wrapper temp = *derived;
+	--(*derived);
+	return temp;
 }
 
 
+MyString::const_iterator MyString::cbegin() const {
+	return const_iterator(this, 0);
+}
+MyString::const_iterator MyString::cend() const {
+	return const_iterator(this, this->size_str_);
+}
+MyString::iterator MyString::begin() const {
+	return iterator(const_cast<MyString*>(this), 0);
+}
+MyString::iterator MyString::end() const {
+	return iterator(const_cast<MyString*>(this), this->size_str_);
+}
+MyString::const_reverse_iterator MyString::rcbegin() const {
+	return const_reverse_iterator(this, this->size_str_ - 1);
+}
+MyString::const_reverse_iterator MyString::rcend() const {
+	return const_reverse_iterator(this, static_cast<size_t>(0));
+}
+MyString::reverse_iterator MyString::rbegin() const {
+	return reverse_iterator(const_cast<MyString*>(this), this->size_str_ - 1);
+}
+MyString::reverse_iterator MyString::rend() const {
+	return reverse_iterator(const_cast<MyString*>(this), static_cast<size_t>(0));
+}
+
+MyString::const_reversed_wrapper MyString::const_reversed_range::begin() const {
+	return const_reversed_wrapper(str, str->size_str_ - 1);
+}
+
+MyString::const_reversed_wrapper MyString::const_reversed_range::end() const {
+	return const_reversed_wrapper(str, static_cast<size_t>(0));
+}
+
+MyString::reversed_wrapper MyString::reversed_range::begin() {
+	return reversed_wrapper(str, str->size_str_ - 1);
+}
+
+MyString::reversed_wrapper MyString::reversed_range::end() {
+	return reversed_wrapper(str, static_cast<size_t>(0));
+}
+
+MyString::const_reversed_range MyString::reversed() const {
+	return MyString::const_reversed_range{ this };
+}
+
+MyString::reversed_range MyString::reversed() {
+	return reversed_range{ this };
+}*/
+
+
+/*MyString::const_iterator& MyString::const_iterator::operator++() {
+	MyStringErrors::check_out_of_range_index(ptr_->size_str_, pos_);
+	++pos_;
+	return *this;
+}
+MyString::const_iterator MyString::const_iterator::operator++(int) {
+	MyStringErrors::check_out_of_range_index(ptr_->size_str_, pos_);
+
+	const_iterator temp = *this;
+	++(this->pos_);
+	return temp;
+}
+
+MyString::iterator& MyString::iterator::operator++() {
+	MyStringErrors::check_out_of_range_index(ptr_->size_str_, pos_);
+	++pos_;
+	return *this;
+}
+MyString::iterator MyString::iterator::operator++(int) {
+	MyStringErrors::check_out_of_range_index(ptr_->size_str_, pos_);
+
+	iterator temp = *this;
+	++(this->pos_);
+	return temp;
+}
+
+MyString::const_reverse_iterator& MyString::const_reverse_iterator::operator--() {
+	MyStringErrors::check_out_of_range_index(ptr_->size_str_, pos_);
+	--pos_;
+	return *this;
+}
+MyString::const_reverse_iterator MyString::const_reverse_iterator::operator--(int) {
+	MyStringErrors::check_out_of_range_index(ptr_->size_str_, pos_);
+
+	const_reverse_iterator temp = *this;
+	--(this->pos_);
+	return temp;
+}*/
+
+
+/*MyString::const_iterator::const_iterator() : ptr_(nullptr), pos_(0) {}
+MyString::const_iterator::const_iterator(const MyString* ptr, size_t pos) : ptr_(ptr), pos_(pos) {}
+
+MyString::const_iterator::reference MyString::const_iterator::operator*() const {
+	return ptr_->operator[](pos_);
+}
+MyString::const_iterator& MyString::const_iterator::operator++() {
+	MyStringErrors::check_out_of_range_index(ptr_->size_str_, pos_);
+	++pos_;
+	return *this;
+}
+MyString::const_iterator MyString::const_iterator::operator++(int) {
+	MyStringErrors::check_out_of_range_index(ptr_->size_str_, pos_);
+
+	const_iterator temp = *this;
+	++(this->pos_);
+	return temp;
+}
+bool MyString::const_iterator::operator==(const const_iterator& other) const {
+	return ptr_ == other.ptr_ && this->pos_ == other.pos_;
+}
+bool MyString::const_iterator::operator!=(const const_iterator& other) const {
+	return !this->operator==(other);
+}
+
+MyString::iterator::iterator() : const_iterator() {}
+MyString::iterator::iterator(MyString* ptr, size_t pos) : const_iterator(ptr, pos) {}
+
+MyString::iterator::reference MyString::iterator::operator*() const {
+	return const_cast<reference>(const_iterator::operator*());
+}
+MyString::iterator& MyString::iterator::operator++() {
+	const_iterator::operator++();
+	return *this;
+}
+MyString::iterator& MyString::iterator::operator++(int) {
+	iterator temp = *this;
+	const_iterator::operator++(0);
+	return temp;
+}
+bool MyString::iterator::operator==(const iterator& other) const {
+	return const_iterator::operator==(static_cast<const const_iterator&>(other));
+}
+bool MyString::iterator::operator!=(const iterator& other) const {
+	return !this->operator==(other);
+}
+
+//MyString::const_reverse_iterator() : {}
+//const_reverse_iterator(const MyString*, size_t);
+
+MyString::iterator MyString::begin() {
+	return MyString::iterator(this, 0);
+}
+
+MyString::iterator MyString::end() {
+	return iterator(this, size_str_);
+}
+
+MyString::const_iterator MyString::cbegin() const {
+	return const_iterator(this, 0);
+}
+MyString::const_iterator MyString::cend() const {
+	return const_iterator(this, size_str_);
+}*/
+
+MyString::const_iterator MyString::cbegin() const {
+	return const_iterator(this, 0);
+}
+MyString::const_iterator MyString::cend() const {
+	return const_iterator(this, this->size_str_);
+}
+MyString::iterator MyString::begin() const {
+	return iterator(const_cast<MyString*>(this), 0);
+}
+MyString::iterator MyString::end() const {
+	return iterator(const_cast<MyString*>(this), this->size_str_);
+}
+MyString::const_reverse_iterator MyString::rcbegin() const {
+	return const_reverse_iterator(cend() - 1);
+}
+MyString::const_reverse_iterator MyString::rcend() const {
+	return const_reverse_iterator(cbegin());
+}
+MyString::reverse_iterator MyString::rbegin() const {
+	return reverse_iterator(end() - 1);
+}
+MyString::reverse_iterator MyString::rend() const {
+	return reverse_iterator(begin());
+}
+
+template void MyString::insert<MyString::iterator>(const MyString::iterator&, const int, const char);
+template void MyString::insert<MyString::const_iterator>(const MyString::const_iterator&, const int, const char);
+template void MyString::insert<MyString::reverse_iterator>(const MyString::reverse_iterator&, const int, const char);
+template void MyString::insert<MyString::const_reverse_iterator>(const MyString::const_reverse_iterator&, const int, const char);
+
+template void MyString::insert<MyString::iterator>(const MyString::iterator&, const char*);
+template void MyString::insert<MyString::const_iterator>(const MyString::const_iterator&, const char*);
+template void MyString::insert<MyString::reverse_iterator>(const MyString::reverse_iterator&, const char*);
+template void MyString::insert<MyString::const_reverse_iterator>(const MyString::const_reverse_iterator&, const char*);
+
+template void MyString::insert<MyString::iterator>(const MyString::iterator&, const std::string&);
+template void MyString::insert<MyString::const_iterator>(const MyString::const_iterator&, const std::string&);
+template void MyString::insert<MyString::reverse_iterator>(const MyString::reverse_iterator&, const std::string&);
+template void MyString::insert<MyString::const_reverse_iterator>(const MyString::const_reverse_iterator&, const std::string&);
+
+template void MyString::insert<MyString::iterator>(const MyString::iterator&, const MyString&);
+template void MyString::insert<MyString::const_iterator>(const MyString::const_iterator&, const MyString&);
+template void MyString::insert<MyString::reverse_iterator>(const MyString::reverse_iterator&, const MyString&);
+template void MyString::insert<MyString::const_reverse_iterator>(const MyString::const_reverse_iterator&, const MyString&);
+
+template void MyString::insert<MyString::iterator>(const MyString::iterator&, const char*, const int);
+template void MyString::insert<MyString::const_iterator>(const MyString::const_iterator&, const char*, const int);
+template void MyString::insert<MyString::reverse_iterator>(const MyString::reverse_iterator&, const char*, const int);
+template void MyString::insert<MyString::const_reverse_iterator>(const MyString::const_reverse_iterator&, const char*, const int);
+
+template void MyString::insert<MyString::iterator>(const MyString::iterator&, const std::string&, const int);
+template void MyString::insert<MyString::const_iterator>(const MyString::const_iterator&, const std::string&, const int);
+template void MyString::insert<MyString::reverse_iterator>(const MyString::reverse_iterator&, const std::string&, const int);
+template void MyString::insert<MyString::const_reverse_iterator>(const MyString::const_reverse_iterator&, const std::string&, const int);
+
+template void MyString::insert<MyString::iterator>(const MyString::iterator&, const MyString&, const int);
+template void MyString::insert<MyString::const_iterator>(const MyString::const_iterator&, const MyString&, const int);
+template void MyString::insert<MyString::reverse_iterator>(const MyString::reverse_iterator&, const MyString&, const int);
+template void MyString::insert<MyString::const_reverse_iterator>(const MyString::const_reverse_iterator&, const MyString&, const int);
+
+/*template void MyString::insert<MyString::iterator, MyString::iterator>(
+	const iterator&, const iterator&, const int);
+template void MyString::insert<MyString::iterator, MyString::const_iterator>(
+	const iterator&, const const_iterator&, const int);
+template void MyString::insert<MyString::const_iterator, MyString::iterator>(
+	const const_iterator&, const iterator&, const int);
+template void MyString::insert<MyString::const_iterator, MyString::const_iterator>(
+	const const_iterator&, const const_iterator&, const int);
+
+// Прямые итераторы позиции + обратные итераторы источника
+template void MyString::insert<MyString::iterator, MyString::reverse_iterator>(
+	const iterator&, const reverse_iterator&, const int);
+template void MyString::insert<MyString::iterator, MyString::const_reverse_iterator>(
+	const iterator&, const const_reverse_iterator&, const int);
+template void MyString::insert<MyString::const_iterator, MyString::reverse_iterator>(
+	const const_iterator&, const reverse_iterator&, const int);
+template void MyString::insert<MyString::const_iterator, MyString::const_reverse_iterator>(
+	const const_iterator&, const const_reverse_iterator&, const int);
+
+// Обратные итераторы позиции + прямые итераторы источника
+template void MyString::insert<MyString::reverse_iterator, MyString::iterator>(
+	const reverse_iterator&, const iterator&, const int);
+template void MyString::insert<MyString::reverse_iterator, MyString::const_iterator>(
+	const reverse_iterator&, const const_iterator&, const int);
+template void MyString::insert<MyString::const_reverse_iterator, MyString::iterator>(
+	const const_reverse_iterator&, const iterator&, const int);
+template void MyString::insert<MyString::const_reverse_iterator, MyString::const_iterator>(
+	const const_reverse_iterator&, const const_iterator&, const int);
+
+// Обратные итераторы позиции + обратные итераторы источника
+template void MyString::insert<MyString::reverse_iterator, MyString::reverse_iterator>(
+	const reverse_iterator&, const reverse_iterator&, const int);
+template void MyString::insert<MyString::reverse_iterator, MyString::const_reverse_iterator>(
+	const reverse_iterator&, const const_reverse_iterator&, const int);
+template void MyString::insert<MyString::const_reverse_iterator, MyString::reverse_iterator>(
+	const const_reverse_iterator&, const reverse_iterator&, const int);
+template void MyString::insert<MyString::const_reverse_iterator, MyString::const_reverse_iterator>(
+	const const_reverse_iterator&, const const_reverse_iterator&, const int);*/
+
+
+
+
+
+void foo() {
+	std::string str = "Hello";
+	for (auto it = str.begin(); it < str.end(); ++it);
+}
 
 /*
 Caregory1:
