@@ -19,6 +19,11 @@
 **/*.tlog
 **/*.log
 **/*.recipe
+**/MyString/
+**/*.txt
+**/*.vcxproj
+**/*.vcxproj.filters
+**/*.vcxproj.user
 
 # Явно разрешить исходные файлы
 !**/*.cpp
